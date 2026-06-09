@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #1a0533;
+    color: white;
+    min-height: 100vh;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-white text-purple-900 font-bold py-3 px-8 rounded-full text-lg hover:bg-gray-100 transition-all duration-200 active:scale-95 shadow-lg;
+  }
+
+  .btn-secondary {
+    @apply bg-transparent border-2 border-white text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-white hover:text-purple-900 transition-all duration-200 active:scale-95;
+  }
+
+  .btn-danger {
+    @apply bg-red-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-red-600 transition-all duration-200 active:scale-95;
+  }
+
+  .card {
+    @apply bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20;
+  }
+
+  .input-field {
+    @apply w-full bg-white/20 border border-white/30 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:border-white/70 focus:bg-white/30 transition-all duration-200 text-lg;
+  }
+
+  .answer-btn-red {
+    @apply bg-red-500 hover:bg-red-400 active:bg-red-600 text-white font-bold text-xl rounded-2xl p-6 transition-all duration-150 active:scale-95 shadow-lg flex items-center gap-3 cursor-pointer;
+  }
+
+  .answer-btn-blue {
+    @apply bg-blue-500 hover:bg-blue-400 active:bg-blue-600 text-white font-bold text-xl rounded-2xl p-6 transition-all duration-150 active:scale-95 shadow-lg flex items-center gap-3 cursor-pointer;
+  }
+
+  .answer-btn-yellow {
+    @apply bg-yellow-500 hover:bg-yellow-400 active:bg-yellow-600 text-white font-bold text-xl rounded-2xl p-6 transition-all duration-150 active:scale-95 shadow-lg flex items-center gap-3 cursor-pointer;
+  }
+
+  .answer-btn-green {
+    @apply bg-green-500 hover:bg-green-400 active:bg-green-600 text-white font-bold text-xl rounded-2xl p-6 transition-all duration-150 active:scale-95 shadow-lg flex items-center gap-3 cursor-pointer;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.5);
+}
+
+/* Gradient backgrounds */
+.bg-gradient-main {
+  background: linear-gradient(135deg, #1a0533 0%, #2d1b69 50%, #1a0533 100%);
+}
+
+.bg-gradient-game {
+  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+}

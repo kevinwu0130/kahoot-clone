@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  quizzes   Quiz[]
+  games     Game[]
+}
+
+model Quiz {
+  id          Int        @id @default(autoincrement())
+  title       String
+  description String?
+  isPublic    Boolean    @default(false)
+  createdById Int
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  createdBy   User       @relation(fields: [createdById], references: [id])
+  questions   Question[]
+  games       Game[]
+}
+
+model Question {
+  id        Int      @id @default(autoincrement())
+  quizId    Int
+  order     Int
+  text      String
+  timeLimit Int      @default(20)
+  points    Int      @default(1000)
+  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options   Option[]
+  answers   GameAnswer[]
+}
+
+model Option {
+  id         Int      @id @default(autoincrement())
+  questionId Int
+  text       String
+  isCorrect  Boolean  @default(false)
+  order      Int      @default(0)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers    GameAnswer[]
+}
+
+model Game {
+  id              Int       @id @default(autoincrement())
+  code            String    @unique
+  quizId          Int
+  hostId          Int
+  status          String    @default("WAITING")
+  currentQuestion Int       @default(0)
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  quiz            Quiz      @relation(fields: [quizId], references: [id])
+  host            User      @relation(fields: [hostId], references: [id])
+  players         Player[]
+  answers         GameAnswer[]
+}
+
+model Player {
+  id       Int    @id @default(autoincrement())
+  gameId   Int
+  nickname String
+  score    Int    @default(0)
+  rank     Int?
+  isActive Boolean @default(true)
+  joinedAt DateTime @default(now())
+  game     Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  answers  GameAnswer[]
+}
+
+model GameAnswer {
+  id           Int      @id @default(autoincrement())
+  gameId       Int
+  playerId     Int
+  questionId   Int
+  optionId     Int?
+  isCorrect    Boolean  @default(false)
+  points       Int      @default(0)
+  responseTime Int      @default(0)
+  createdAt    DateTime @default(now())
+  game         Game     @relation(fields: [gameId], references: [id])
+  player       Player   @relation(fields: [playerId], references: [id])
+  question     Question @relation(fields: [questionId], references: [id])
+  option       Option?  @relation(fields: [optionId], references: [id])
+}
