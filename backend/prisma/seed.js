@@ -9,12 +9,18 @@ async function main() {
   // Create admin user
   const hashedPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'Admin@1234', 10);
 
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@kahoot.com'
+  const adminName = process.env.ADMIN_NAME || '管理員'
+
+  // Remove old default admin account if it exists
+  await prisma.user.deleteMany({ where: { email: 'admin@kahoot.com' } }).catch(() => {})
+
   const admin = await prisma.user.upsert({
-    where: { email: process.env.ADMIN_EMAIL || 'admin@kahoot.com' },
-    update: { name: '管理員', password: hashedPassword },
+    where: { email: adminEmail },
+    update: { name: adminName, password: hashedPassword },
     create: {
-      name: '管理員',
-      email: process.env.ADMIN_EMAIL || 'admin@kahoot.com',
+      name: adminName,
+      email: adminEmail,
       password: hashedPassword,
     },
   });
