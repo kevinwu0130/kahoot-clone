@@ -15,6 +15,8 @@ model User {
   createdAt DateTime @default(now())
   quizzes   Quiz[]
   games     Game[]
+
+  @@map("kahoot_users")
 }
 
 model Quiz {
@@ -28,6 +30,8 @@ model Quiz {
   createdBy   User       @relation(fields: [createdById], references: [id])
   questions   Question[]
   games       Game[]
+
+  @@map("kahoot_quizzes")
 }
 
 model Question {
@@ -40,6 +44,8 @@ model Question {
   quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
   options   Option[]
   answers   GameAnswer[]
+
+  @@map("kahoot_questions")
 }
 
 model Option {
@@ -50,6 +56,8 @@ model Option {
   order      Int      @default(0)
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   answers    GameAnswer[]
+
+  @@map("kahoot_options")
 }
 
 model Game {
@@ -66,6 +74,8 @@ model Game {
   host            User      @relation(fields: [hostId], references: [id])
   players         Player[]
   answers         GameAnswer[]
+
+  @@map("kahoot_games")
 }
 
 model Player {
@@ -78,6 +88,8 @@ model Player {
   joinedAt DateTime @default(now())
   game     Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
   answers  GameAnswer[]
+
+  @@map("kahoot_players")
 }
 
 model GameAnswer {
@@ -94,4 +106,6 @@ model GameAnswer {
   player       Player   @relation(fields: [playerId], references: [id])
   question     Question @relation(fields: [questionId], references: [id])
   option       Option?  @relation(fields: [optionId], references: [id])
+
+  @@map("kahoot_game_answers")
 }
