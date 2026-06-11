@@ -8,7 +8,7 @@ echo "Generating Prisma client..."
 npx prisma generate
 
 echo "Pushing schema to database..."
-npx prisma db push --skip-generate --accept-data-loss
+npx prisma db push --skip-generate
 
 echo "Seeding admin user..."
 node prisma/seed.js
