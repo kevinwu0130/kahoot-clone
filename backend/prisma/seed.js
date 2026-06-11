@@ -11,9 +11,9 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { email: process.env.ADMIN_EMAIL || 'admin@kahoot.com' },
-    update: {},
+    update: { name: '管理員', password: hashedPassword },
     create: {
-      name: process.env.ADMIN_NAME || '管理員',
+      name: '管理員',
       email: process.env.ADMIN_EMAIL || 'admin@kahoot.com',
       password: hashedPassword,
     },
