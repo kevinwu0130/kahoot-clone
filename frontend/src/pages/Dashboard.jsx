@@ -53,8 +53,8 @@ function Dashboard() {
       {/* Header */}
       <header className="flex justify-between items-center px-6 py-4 border-b border-white/10">
         <Link to="/" className="flex items-center gap-2 hover:opacity-80">
-          <span className="text-3xl">🎮</span>
-          <h1 className="text-2xl font-black text-white">Kahoot!</h1>
+          <img src="/logo.svg" alt="wu5-Live" className="w-10 h-10" />
+          <h1 className="text-2xl font-black text-white">wu5-Live</h1>
         </Link>
         <div className="flex items-center gap-4">
           <span className="text-purple-200">歡迎，{user?.name}</span>

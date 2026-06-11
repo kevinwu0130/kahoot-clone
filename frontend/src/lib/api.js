@@ -51,6 +51,11 @@ export const quizAPI = {
   addQuestion: (quizId, data) => api.post(`/quizzes/${quizId}/questions`, data),
   updateQuestion: (qid, data) => api.put(`/quizzes/questions/${qid}`, data),
   deleteQuestion: (qid) => api.delete(`/quizzes/questions/${qid}`),
+  importCSV: (quizId, file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post(`/quizzes/${quizId}/import`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
 };
 
 // Game API

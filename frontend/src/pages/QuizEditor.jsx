@@ -155,6 +155,7 @@ function QuizEditor() {
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [importMsg, setImportMsg] = useState('');
 
   useEffect(() => {
     if (isEdit) loadQuiz();
@@ -209,6 +210,31 @@ function QuizEditor() {
     if (!confirm('確定要刪除此題目？')) return;
     await quizAPI.deleteQuestion(qid);
     setQuestions(questions.filter(q => q.id !== qid));
+  };
+
+  const handleImportCSV = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    setImportMsg('匯入中...');
+    try {
+      const res = await quizAPI.importCSV(id, file);
+      const { imported, errors, total } = res.data;
+      setImportMsg(`成功匯入 ${imported} / ${total} 題${errors.length > 0 ? `，${errors.length} 筆錯誤` : ''}`);
+      await loadQuiz();
+    } catch (err) {
+      setImportMsg(err.response?.data?.error || '匯入失敗');
+    }
+    setTimeout(() => setImportMsg(''), 5000);
+  };
+
+  const downloadTemplate = () => {
+    const content = '題目,選項A,選項B,選項C,選項D,正確答案,時間限制,分數\n台灣首都是哪裡?,台北,台中,高雄,台南,A,20,1000\n下列哪個是程式語言?,Python,HTML,CSS,Word,A,30,1000\n';
+    const blob = new Blob(['﻿' + content], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '題庫範本.csv';
+    a.click();
   };
 
   if (loading) {
@@ -284,18 +310,35 @@ function QuizEditor() {
         {/* Questions (only shown when editing existing quiz) */}
         {isEdit && (
           <div>
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
               <h2 className="text-xl font-bold text-white">
                 題目列表
                 <span className="ml-2 text-sm text-purple-300">({questions.length} 題)</span>
               </h2>
-              <button
-                onClick={() => { setAddingQuestion(true); setEditingQuestion(null); }}
-                className="bg-green-500 hover:bg-green-400 text-white font-bold py-2 px-4 rounded-xl transition-all active:scale-95 text-sm"
-              >
-                + 新增題目
-              </button>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={downloadTemplate}
+                  className="bg-white/10 hover:bg-white/20 text-white font-bold py-2 px-3 rounded-xl transition-all active:scale-95 text-sm"
+                >
+                  下載範本
+                </button>
+                <label className="bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold py-2 px-3 rounded-xl transition-all active:scale-95 text-sm cursor-pointer">
+                  批次匯入 CSV
+                  <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
+                </label>
+                <button
+                  onClick={() => { setAddingQuestion(true); setEditingQuestion(null); }}
+                  className="bg-green-500 hover:bg-green-400 text-white font-bold py-2 px-4 rounded-xl transition-all active:scale-95 text-sm"
+                >
+                  + 新增題目
+                </button>
+              </div>
             </div>
+            {importMsg && (
+              <div className="mb-3 bg-blue-500/20 border border-blue-500/50 rounded-xl p-3 text-blue-200 text-sm text-center">
+                {importMsg}
+              </div>
+            )}
 
             {/* Add question form */}
             {addingQuestion && (

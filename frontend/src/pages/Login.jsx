@@ -44,8 +44,8 @@ function Login() {
       {/* Header */}
       <header className="flex justify-between items-center px-6 py-4">
         <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <span className="text-3xl">🎮</span>
-          <h1 className="text-2xl font-black text-white">Kahoot!</h1>
+          <img src="/logo.svg" alt="wu5-Live" className="w-10 h-10" />
+          <h1 className="text-2xl font-black text-white">wu5-Live</h1>
         </Link>
       </header>
 
@@ -126,14 +126,6 @@ function Login() {
               {loading ? '處理中...' : (tab === 'login' ? '登入' : '建立帳號')}
             </button>
           </form>
-
-          {tab === 'login' && (
-            <div className="text-center mt-6">
-              <p className="text-purple-200 text-sm">
-                預設管理員：admin@kahoot.com / Admin@1234
-              </p>
-            </div>
-          )}
 
           <div className="text-center mt-6">
             <Link to="/" className="text-purple-300 hover:text-white transition-colors">
