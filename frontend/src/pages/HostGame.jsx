@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
+import { BACKEND_URL } from '../lib/api';
 import Timer from '../components/Timer';
 import Leaderboard from '../components/Leaderboard';
 
@@ -31,7 +32,7 @@ function HostGame() {
   const socketRef = useRef(null);
 
   useEffect(() => {
-    const socket = io('/', { transports: ['websocket', 'polling'] });
+    const socket = io(BACKEND_URL, { transports: ['websocket', 'polling'] });
     socketRef.current = socket;
 
     socket.on('connect', () => {

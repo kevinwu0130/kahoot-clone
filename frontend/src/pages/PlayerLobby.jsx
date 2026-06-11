@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
+import { BACKEND_URL } from '../lib/api';
 
 function PlayerLobby() {
   const { gameId } = useParams();
@@ -18,7 +19,7 @@ function PlayerLobby() {
       return;
     }
 
-    const socket = io('/', { transports: ['websocket', 'polling'] });
+    const socket = io(BACKEND_URL, { transports: ['websocket', 'polling'] });
     socketRef.current = socket;
 
     socket.on('connect', () => {

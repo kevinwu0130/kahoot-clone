@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
+import { BACKEND_URL } from '../lib/api';
 import { gameAPI } from '../lib/api';
 
 function HostLobby() {
@@ -34,7 +35,7 @@ function HostLobby() {
   };
 
   const setupSocket = () => {
-    const socket = io('/', {
+    const socket = io(BACKEND_URL, {
       transports: ['websocket', 'polling'],
     });
     socketRef.current = socket;

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
+import { BACKEND_URL } from '../lib/api';
 
 function PlayerJoin() {
   const [searchParams] = useSearchParams();
@@ -31,7 +32,7 @@ function PlayerJoin() {
     setJoining(true);
     setError('');
 
-    const socket = io('/', { transports: ['websocket', 'polling'] });
+    const socket = io(BACKEND_URL, { transports: ['websocket', 'polling'] });
 
     socket.on('connect', () => {
       socket.emit('player:join', { code: code.trim(), nickname: trimmedNick });
@@ -70,8 +71,8 @@ function PlayerJoin() {
     <div className="min-h-screen bg-gradient-main flex flex-col">
       <header className="flex justify-between items-center px-6 py-4">
         <Link to="/" className="flex items-center gap-2 hover:opacity-80">
-          <span className="text-3xl">🎮</span>
-          <h1 className="text-2xl font-black text-white">Kahoot!</h1>
+          <img src="/logo.svg" alt="wu5-Live" className="w-10 h-10" />
+          <h1 className="text-2xl font-black text-white">wu5-Live</h1>
         </Link>
       </header>
 
