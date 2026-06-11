@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require('../lib/prisma');
 const authMiddleware = require('../middleware/auth');
+const gameConfig = require('../lib/gameConfig');
 
 const router = express.Router();
 
@@ -8,10 +9,20 @@ function generateGameCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+// Fisher–Yates shuffle (returns a new array)
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 // POST /api/games - create game room
 router.post('/', authMiddleware, async (req, res, next) => {
   try {
-    const { quizId } = req.body;
+    const { quizId, questionCount, autoAdvance } = req.body;
 
     if (!quizId) {
       return res.status(400).json({ error: '請選擇測驗' });
@@ -19,7 +30,7 @@ router.post('/', authMiddleware, async (req, res, next) => {
 
     const quiz = await prisma.quiz.findFirst({
       where: { id: parseInt(quizId), createdById: req.user.id },
-      include: { questions: true },
+      include: { questions: { orderBy: { order: 'asc' } } },
     });
 
     if (!quiz) {
@@ -29,6 +40,18 @@ router.post('/', authMiddleware, async (req, res, next) => {
     if (quiz.questions.length === 0) {
       return res.status(400).json({ error: '測驗沒有題目，請先新增題目' });
     }
+
+    // Decide which questions this game will use. Default = all (in order).
+    // If questionCount is set and smaller than the pool, randomly pick that many.
+    const total = quiz.questions.length;
+    let count = parseInt(questionCount);
+    if (!Number.isInteger(count) || count <= 0 || count >= total) {
+      count = total;
+    }
+    const questionIds =
+      count >= total
+        ? quiz.questions.map((q) => q.id)
+        : shuffle(quiz.questions.map((q) => q.id)).slice(0, count);
 
     // Generate unique code
     let code;
@@ -60,7 +83,16 @@ router.post('/', authMiddleware, async (req, res, next) => {
       },
     });
 
-    res.status(201).json({ game });
+    // Remember this game's chosen questions + advance mode (in-memory).
+    gameConfig.set(game.id, { questionIds, autoAdvance: !!autoAdvance });
+
+    res.status(201).json({
+      game: {
+        ...game,
+        questionCount: questionIds.length,
+        autoAdvance: !!autoAdvance,
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -94,7 +126,11 @@ router.get('/:id', authMiddleware, async (req, res, next) => {
       return res.status(404).json({ error: '遊戲不存在' });
     }
 
-    res.json({ game });
+    const cfg = gameConfig.get(game.id);
+    const questionCount = cfg?.questionIds?.length ?? game.quiz.questions.length;
+    const autoAdvance = cfg?.autoAdvance ?? false;
+
+    res.json({ game: { ...game, questionCount, autoAdvance } });
   } catch (error) {
     next(error);
   }

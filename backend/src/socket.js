@@ -1,9 +1,27 @@
 const { Server } = require('socket.io');
 const prisma = require('./lib/prisma');
+const gameConfig = require('./lib/gameConfig');
+
+// How long the answer-stats screen stays up before auto-advancing (auto mode).
+const AUTO_ADVANCE_DELAY_MS = 5000;
 
 // In-memory state for active game timers
 const gameTimers = {};
 const questionStartTimes = {};
+
+// Resolve the ordered list of questions this game should run. Falls back to all
+// of the quiz's questions (in order) if no per-game config exists (e.g. after a
+// server restart). `game` must include quiz.questions ordered by `order` asc.
+function gameQuestions(gameId, game) {
+  const all = game.quiz.questions;
+  const cfg = gameConfig.get(gameId);
+  if (!cfg || !Array.isArray(cfg.questionIds) || cfg.questionIds.length === 0) {
+    return all;
+  }
+  const byId = new Map(all.map((q) => [q.id, q]));
+  const picked = cfg.questionIds.map((id) => byId.get(id)).filter(Boolean);
+  return picked.length ? picked : all;
+}
 // Tracks the current live socket id for each player, so a stale socket's
 // disconnect (e.g. the join page navigating away) doesn't kick a player who
 // has already reconnected on a new page.
@@ -128,7 +146,9 @@ function setupSocket(server) {
           return;
         }
 
-        if (game.quiz.questions.length === 0) {
+        const questions = gameQuestions(gameId, game);
+
+        if (questions.length === 0) {
           socket.emit('game:error', '沒有題目');
           return;
         }
@@ -139,7 +159,7 @@ function setupSocket(server) {
           data: { status: 'PLAYING', startedAt: new Date(), currentQuestion: 0 },
         });
 
-        const firstQuestion = game.quiz.questions[0];
+        const firstQuestion = questions[0];
         const questionForClient = {
           id: firstQuestion.id,
           text: firstQuestion.text,
@@ -153,19 +173,19 @@ function setupSocket(server) {
         io.to(`game:${gameId}`).emit('game:started', {
           question: questionForClient,
           questionIndex: 0,
-          totalQuestions: game.quiz.questions.length,
+          totalQuestions: questions.length,
         });
 
         io.to(`game:${gameId}`).emit('game:question', {
           question: questionForClient,
           questionIndex: 0,
-          totalQuestions: game.quiz.questions.length,
+          totalQuestions: questions.length,
         });
 
         console.log(`Game ${gameId} started`);
 
-        // Auto-advance after time limit
-        scheduleQuestionEnd(io, gameId, game, 0);
+        // Auto-end this question after its time limit
+        scheduleQuestionEnd(io, gameId, questions, 0);
       } catch (error) {
         console.error('host:start error:', error);
         socket.emit('game:error', '開始遊戲失敗');
@@ -175,59 +195,7 @@ function setupSocket(server) {
     // Host moves to next question
     socket.on('host:next', async (gameId) => {
       try {
-        clearGameTimer(gameId);
-
-        const game = await prisma.game.findUnique({
-          where: { id: parseInt(gameId) },
-          include: {
-            quiz: {
-              include: {
-                questions: {
-                  include: { options: { orderBy: { order: 'asc' } } },
-                  orderBy: { order: 'asc' },
-                },
-              },
-            },
-            players: { where: { isActive: true } },
-          },
-        });
-
-        if (!game || game.status !== 'PLAYING') {
-          return;
-        }
-
-        const nextIndex = game.currentQuestion + 1;
-
-        if (nextIndex >= game.quiz.questions.length) {
-          // Game over
-          await endGame(io, gameId, game);
-          return;
-        }
-
-        // Update current question index
-        await prisma.game.update({
-          where: { id: parseInt(gameId) },
-          data: { currentQuestion: nextIndex },
-        });
-
-        const nextQuestion = game.quiz.questions[nextIndex];
-        const questionForClient = {
-          id: nextQuestion.id,
-          text: nextQuestion.text,
-          timeLimit: nextQuestion.timeLimit,
-          points: nextQuestion.points,
-          options: nextQuestion.options.map(o => ({ id: o.id, text: o.text, order: o.order })),
-        };
-
-        questionStartTimes[gameId] = Date.now();
-
-        io.to(`game:${gameId}`).emit('game:question', {
-          question: questionForClient,
-          questionIndex: nextIndex,
-          totalQuestions: game.quiz.questions.length,
-        });
-
-        scheduleQuestionEnd(io, gameId, game, nextIndex);
+        await advanceToNext(io, gameId);
       } catch (error) {
         console.error('host:next error:', error);
         socket.emit('game:error', '下一題失敗');
@@ -440,13 +408,68 @@ function setupSocket(server) {
   return io;
 }
 
-function scheduleQuestionEnd(io, gameId, game, questionIndex) {
-  const question = game.quiz.questions[questionIndex];
+function scheduleQuestionEnd(io, gameId, questions, questionIndex) {
+  const question = questions[questionIndex];
   const timeLimit = question.timeLimit * 1000;
 
   gameTimers[gameId] = setTimeout(async () => {
     await showQuestionResults(io, gameId);
   }, timeLimit + 500); // small buffer
+}
+
+// Advance to the next question (or end the game). Shared by the host's manual
+// "next" button and the auto-advance timer.
+async function advanceToNext(io, gameId) {
+  clearGameTimer(gameId);
+
+  const game = await prisma.game.findUnique({
+    where: { id: parseInt(gameId) },
+    include: {
+      quiz: {
+        include: {
+          questions: {
+            include: { options: { orderBy: { order: 'asc' } } },
+            orderBy: { order: 'asc' },
+          },
+        },
+      },
+      players: { where: { isActive: true } },
+    },
+  });
+
+  if (!game || game.status !== 'PLAYING') return;
+
+  const questions = gameQuestions(gameId, game);
+  const nextIndex = game.currentQuestion + 1;
+
+  if (nextIndex >= questions.length) {
+    await endGame(io, gameId, game);
+    return;
+  }
+
+  await prisma.game.update({
+    where: { id: parseInt(gameId) },
+    data: { currentQuestion: nextIndex },
+  });
+
+  const nextQuestion = questions[nextIndex];
+  const questionForClient = {
+    id: nextQuestion.id,
+    text: nextQuestion.text,
+    timeLimit: nextQuestion.timeLimit,
+    points: nextQuestion.points,
+    options: nextQuestion.options.map((o) => ({ id: o.id, text: o.text, order: o.order })),
+  };
+
+  questionStartTimes[gameId] = Date.now();
+
+  io.to(`game:${gameId}`).emit('game:question', {
+    question: questionForClient,
+    questionIndex: nextIndex,
+    totalQuestions: questions.length,
+  });
+
+  scheduleQuestionEnd(io, gameId, questions, nextIndex);
 }
 
 function clearGameTimer(gameId) {
@@ -475,7 +498,8 @@ async function showQuestionResults(io, gameId) {
 
     if (!game || game.status !== 'PLAYING') return;
 
-    const currentQ = game.quiz.questions[game.currentQuestion];
+    const questions = gameQuestions(gameId, game);
+    const currentQ = questions[game.currentQuestion];
     const correctOption = currentQ.options.find(o => o.isCorrect);
 
     // Get answer stats
@@ -502,6 +526,16 @@ async function showQuestionResults(io, gameId) {
       stats,
       leaderboard,
     });
+
+    // Auto-advance mode: move on after a short results display. Stored in
+    // gameTimers so a manual "next" (host:next → clearGameTimer) cancels it.
+    const cfg = gameConfig.get(gameId);
+    if (cfg?.autoAdvance) {
+      clearGameTimer(gameId);
+      gameTimers[gameId] = setTimeout(() => {
+        advanceToNext(io, gameId).catch((e) => console.error('auto-advance error:', e));
+      }, AUTO_ADVANCE_DELAY_MS);
+    }
   } catch (error) {
     console.error('showQuestionResults error:', error);
   }
@@ -535,6 +569,8 @@ async function endGame(io, gameId, game) {
     }));
 
     io.to(`game:${gameId}`).emit('game:finished', { leaderboard });
+    clearGameTimer(gameId);
+    gameConfig.delete(gameId);
     console.log(`Game ${gameId} finished`);
   } catch (error) {
     console.error('endGame error:', error);

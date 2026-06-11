@@ -60,7 +60,7 @@ export const quizAPI = {
 
 // Game API
 export const gameAPI = {
-  create: (quizId) => api.post('/games', { quizId }),
+  create: (quizId, opts = {}) => api.post('/games', { quizId, ...opts }),
   get: (id) => api.get(`/games/${id}`),
   getResults: (id) => api.get(`/games/${id}/results`),
 };

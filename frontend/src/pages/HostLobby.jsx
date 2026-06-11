@@ -139,7 +139,17 @@ function HostLobby() {
 
           <div className="card mt-4">
             <p className="text-white/70 text-sm text-center mb-1">測驗資訊</p>
-            <p className="text-white font-bold text-center">{game?.quiz?.questions?.length} 題</p>
+            <p className="text-white font-bold text-center">
+              本場 {game?.questionCount ?? game?.quiz?.questions?.length} 題
+              <span className="text-white/50 font-normal">
+                {' '}/ 題庫 {game?.quiz?.questions?.length} 題
+              </span>
+            </p>
+            <p className="text-center text-sm mt-1">
+              {game?.autoAdvance
+                ? <span className="text-green-300">⏩ 自動進行</span>
+                : <span className="text-purple-200">👆 主持人手動下一題</span>}
+            </p>
           </div>
         </div>
 

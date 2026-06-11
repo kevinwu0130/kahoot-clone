@@ -10,6 +10,10 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [launching, setLaunching] = useState(null);
   const [error, setError] = useState('');
+  // Quiz currently being configured for launch (null = no dialog open)
+  const [setupQuiz, setSetupQuiz] = useState(null);
+  const [questionCount, setQuestionCount] = useState(0);
+  const [autoAdvance, setAutoAdvance] = useState(false);
 
   useEffect(() => {
     loadQuizzes();
@@ -36,15 +40,28 @@ function Dashboard() {
     }
   };
 
-  const handleLaunch = async (quizId) => {
-    setLaunching(quizId);
+  const openSetup = (quiz) => {
+    setSetupQuiz(quiz);
+    setQuestionCount(quiz._count.questions); // default: all questions
+    setAutoAdvance(false);
+  };
+
+  const handleLaunch = async () => {
+    if (!setupQuiz) return;
+    const total = setupQuiz._count.questions;
+    const count = Math.min(Math.max(parseInt(questionCount) || total, 1), total);
+    setLaunching(setupQuiz.id);
     try {
-      const res = await gameAPI.create(quizId);
+      const res = await gameAPI.create(setupQuiz.id, {
+        questionCount: count,
+        autoAdvance,
+      });
       navigate(`/host/${res.data.game.id}/lobby`);
     } catch (err) {
       alert('建立遊戲失敗：' + (err.response?.data?.error || '未知錯誤'));
     } finally {
       setLaunching(null);
+      setSetupQuiz(null);
     }
   };
 
@@ -127,7 +144,7 @@ function Dashboard() {
 
                 <div className="grid grid-cols-3 gap-2">
                   <button
-                    onClick={() => handleLaunch(quiz.id)}
+                    onClick={() => openSetup(quiz)}
                     disabled={launching === quiz.id || quiz._count.questions === 0}
                     className="bg-green-500 hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-xl transition-all active:scale-95 text-sm"
                   >
@@ -157,6 +174,78 @@ function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* Launch setup dialog */}
+      {setupQuiz && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => !launching && setSetupQuiz(null)}
+        >
+          <div
+            className="bg-purple-900 border border-white/15 rounded-2xl p-6 w-full max-w-md shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-2xl font-black text-white mb-1">開始遊戲設定</h3>
+            <p className="text-purple-200 text-sm mb-6 truncate">{setupQuiz.title}</p>
+
+            {/* Question count */}
+            <div className="mb-5">
+              <label className="block text-white font-bold mb-2">
+                出題數量
+                <span className="text-purple-300 font-normal text-sm ml-2">
+                  （題庫共 {setupQuiz._count.questions} 題）
+                </span>
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={setupQuiz._count.questions}
+                value={questionCount}
+                onChange={(e) => setQuestionCount(e.target.value)}
+                className="w-full bg-white/10 border border-white/20 text-white text-lg rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+              <p className="text-purple-300 text-xs mt-1">
+                少於全部題數時，會從題庫<span className="text-yellow-300 font-bold">隨機抽題</span>。
+              </p>
+            </div>
+
+            {/* Auto advance */}
+            <div className="mb-6">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <span className="text-white font-bold">自動進行</span>
+                  <p className="text-purple-300 text-xs mt-0.5">
+                    每題顯示答案 5 秒後自動跳下一題（關閉則由主持人手動點）
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={autoAdvance}
+                  onChange={(e) => setAutoAdvance(e.target.checked)}
+                  className="w-6 h-6 accent-yellow-400 flex-shrink-0 ml-4"
+                />
+              </label>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setSetupQuiz(null)}
+                disabled={!!launching}
+                className="flex-1 bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all active:scale-95"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleLaunch}
+                disabled={!!launching}
+                className="flex-1 bg-green-500 hover:bg-green-400 disabled:opacity-50 text-white font-black py-3 rounded-xl transition-all active:scale-95"
+              >
+                {launching ? '建立中...' : '建立並開始 🚀'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
