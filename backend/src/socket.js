@@ -4,6 +4,10 @@ const prisma = require('./lib/prisma');
 // In-memory state for active game timers
 const gameTimers = {};
 const questionStartTimes = {};
+// Tracks the current live socket id for each player, so a stale socket's
+// disconnect (e.g. the join page navigating away) doesn't kick a player who
+// has already reconnected on a new page.
+const playerSockets = {};
 
 function setupSocket(server) {
   const allowedOrigins = process.env.FRONTEND_URL
@@ -43,14 +47,24 @@ function setupSocket(server) {
         socket.data.role = 'player';
         socket.data.gameId = gameId;
         socket.data.playerId = playerId;
+        playerSockets[playerId] = socket.id;
 
-        // Send current player list
+        // The join page disconnects its socket right before navigating here, which
+        // marks the player inactive. Reactivate so the host's lobby count is correct.
+        if (!player.isActive) {
+          await prisma.player.update({
+            where: { id: parseInt(playerId) },
+            data: { isActive: true },
+          });
+        }
+
+        // Broadcast updated player list to the whole room (host + players)
         const players = await prisma.player.findMany({
           where: { gameId: parseInt(gameId), isActive: true },
           select: { id: true, nickname: true, score: true },
         });
 
-        socket.emit('game:player_joined', { players });
+        io.to(`game:${gameId}`).emit('game:player_joined', { players });
         console.log(`Player ${playerId} rejoined game ${gameId}`);
       } catch (error) {
         console.error('player:rejoin error:', error);
@@ -292,6 +306,7 @@ function setupSocket(server) {
         socket.data.role = 'player';
         socket.data.gameId = game.id;
         socket.data.playerId = player.id;
+        playerSockets[player.id] = socket.id;
 
         // Get updated player list
         const updatedPlayers = await prisma.player.findMany({
@@ -396,7 +411,14 @@ function setupSocket(server) {
       console.log(`Socket disconnected: ${socket.id}`);
 
       if (socket.data.role === 'player' && socket.data.playerId) {
+        // Only deactivate if this socket is still the player's current one.
+        // If the player already reconnected on another page, a newer socket id
+        // is registered and this stale disconnect should be ignored.
+        if (playerSockets[socket.data.playerId] !== socket.id) {
+          return;
+        }
         try {
+          delete playerSockets[socket.data.playerId];
           await prisma.player.update({
             where: { id: socket.data.playerId },
             data: { isActive: false },

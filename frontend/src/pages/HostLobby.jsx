@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
+import { QRCodeSVG } from 'qrcode.react';
 import { BACKEND_URL } from '../lib/api';
 import { gameAPI } from '../lib/api';
 
@@ -12,6 +13,7 @@ function HostLobby() {
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
+  const [showQR, setShowQR] = useState(false);
   const socketRef = useRef(null);
 
   useEffect(() => {
@@ -102,16 +104,18 @@ function HostLobby() {
           <div className="card text-center">
             <h2 className="text-lg font-bold text-white mb-4">如何加入？</h2>
 
-            {/* QR-like visual */}
-            <div className="bg-white rounded-2xl p-4 mx-auto w-48 h-48 flex items-center justify-center mb-4 relative">
-              <div className="text-center">
-                <div className="text-6xl mb-2">📱</div>
-                <div className="text-gray-800 font-black text-2xl tracking-widest">{game?.code}</div>
-              </div>
+            {/* QR code — scan to jump straight to the join page with the code filled in */}
+            <div className="bg-white rounded-2xl p-4 mx-auto w-48 h-48 flex items-center justify-center mb-4">
+              {game?.code ? (
+                <QRCodeSVG value={gameUrl} size={160} level="M" includeMargin={false} />
+              ) : (
+                <div className="text-6xl">📱</div>
+              )}
             </div>
 
             <p className="text-purple-200 text-sm mb-3">
-              前往 <span className="text-yellow-400 font-bold">kahoot-clone.local</span> 輸入代碼
+              手機掃描 QR code，或前往<br />
+              <span className="text-yellow-400 font-bold break-all">{window.location.host}</span> 輸入代碼
             </p>
 
             <div className="bg-white/10 rounded-xl p-3 text-xs text-purple-200 break-all">
@@ -122,6 +126,15 @@ function HostLobby() {
               <p className="text-yellow-300 font-bold text-2xl">{game?.code}</p>
               <p className="text-yellow-200 text-xs">遊戲代碼</p>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowQR(true)}
+              disabled={!game?.code}
+              className="mt-4 w-full bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all active:scale-95"
+            >
+              🔍 全螢幕顯示 QR
+            </button>
           </div>
 
           <div className="card mt-4">
@@ -182,6 +195,36 @@ function HostLobby() {
           {starting ? '開始遊戲中...' : `開始遊戲 (${players.length} 位玩家) 🚀`}
         </button>
       </div>
+
+      {/* Fullscreen QR overlay — for projecting so a whole room can scan */}
+      {showQR && game?.code && (
+        <div
+          className="fixed inset-0 z-50 bg-purple-950/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 animate-fade-in cursor-pointer"
+          onClick={() => setShowQR(false)}
+        >
+          <h2 className="text-white text-3xl md:text-5xl font-black mb-2 text-center">
+            掃描 QR 加入遊戲
+          </h2>
+          <p className="text-purple-200 text-lg mb-8">{window.location.host}</p>
+
+          <div className="bg-white rounded-3xl p-6 md:p-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <QRCodeSVG value={gameUrl} size={380} level="M" includeMargin={false} className="w-[60vw] h-[60vw] max-w-[380px] max-h-[380px]" />
+          </div>
+
+          <div className="mt-8 text-center">
+            <p className="text-purple-200 text-xl mb-1">遊戲代碼</p>
+            <p className="text-yellow-400 font-black text-6xl md:text-8xl tracking-widest">{game.code}</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowQR(false)}
+            className="mt-10 bg-white/15 hover:bg-white/25 text-white font-bold text-lg py-3 px-8 rounded-xl transition-all active:scale-95"
+          >
+            ✕ 關閉
+          </button>
+        </div>
+      )}
     </div>
   );
 }
