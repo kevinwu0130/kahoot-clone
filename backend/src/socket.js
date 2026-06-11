@@ -6,9 +6,19 @@ const gameTimers = {};
 const questionStartTimes = {};
 
 function setupSocket(server) {
+  const allowedOrigins = process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(',').map(s => s.trim())
+    : ['http://localhost:5173', 'http://localhost:5174']
+
   const io = new Server(server, {
     cors: {
-      origin: ['http://localhost:5173', 'http://localhost:3000'],
+      origin: (origin, cb) => {
+        if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+          cb(null, true)
+        } else {
+          cb(new Error('Not allowed by CORS'))
+        }
+      },
       methods: ['GET', 'POST'],
       credentials: true,
     },
