@@ -27,93 +27,35 @@ async function main() {
 
   console.log(`Created admin user: ${admin.email}`);
 
-  // Create a sample quiz
-  const quiz = await prisma.quiz.upsert({
-    where: { id: 1 },
-    update: {},
-    create: {
-      title: '一般知識測驗',
-      description: '測試你的一般知識！',
-      isPublic: true,
-      createdById: admin.id,
-      questions: {
-        create: [
-          {
-            order: 1,
-            text: '地球是太陽系第幾顆行星？',
-            timeLimit: 20,
-            points: 1000,
-            options: {
-              create: [
-                { text: '第二顆', isCorrect: false, order: 0 },
-                { text: '第三顆', isCorrect: true, order: 1 },
-                { text: '第四顆', isCorrect: false, order: 2 },
-                { text: '第五顆', isCorrect: false, order: 3 },
-              ],
-            },
-          },
-          {
-            order: 2,
-            text: '世界上最高的山是哪座？',
-            timeLimit: 20,
-            points: 1000,
-            options: {
-              create: [
-                { text: 'K2', isCorrect: false, order: 0 },
-                { text: '馬特洪峰', isCorrect: false, order: 1 },
-                { text: '聖母峰', isCorrect: true, order: 2 },
-                { text: '乞力馬扎羅山', isCorrect: false, order: 3 },
-              ],
-            },
-          },
-          {
-            order: 3,
-            text: '台灣的首都是哪裡？',
-            timeLimit: 15,
-            points: 1000,
-            options: {
-              create: [
-                { text: '台中', isCorrect: false, order: 0 },
-                { text: '台南', isCorrect: false, order: 1 },
-                { text: '高雄', isCorrect: false, order: 2 },
-                { text: '台北', isCorrect: true, order: 3 },
-              ],
-            },
-          },
-          {
-            order: 4,
-            text: '水的化學式是什麼？',
-            timeLimit: 15,
-            points: 1000,
-            options: {
-              create: [
-                { text: 'H2O2', isCorrect: false, order: 0 },
-                { text: 'CO2', isCorrect: false, order: 1 },
-                { text: 'H2O', isCorrect: true, order: 2 },
-                { text: 'NaCl', isCorrect: false, order: 3 },
-              ],
-            },
-          },
-          {
-            order: 5,
-            text: '1 + 1 等於多少？',
-            timeLimit: 10,
-            points: 500,
-            options: {
-              create: [
-                { text: '1', isCorrect: false, order: 0 },
-                { text: '2', isCorrect: true, order: 1 },
-                { text: '3', isCorrect: false, order: 2 },
-                { text: '11', isCorrect: false, order: 3 },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  });
+  // One-time cleanup: earlier this seed created a sample quiz "一般知識測驗"
+  // on every deploy (its upsert matched on id:1, which never matched the real
+  // auto-incremented id), producing many duplicates. Remove them all here.
+  // Wrapped so a failure never aborts startup (start.sh runs with `set -e`).
+  try {
+    const samples = await prisma.quiz.findMany({
+      where: { title: '一般知識測驗' },
+      select: { id: true },
+    });
+    const sampleIds = samples.map((s) => s.id);
+    if (sampleIds.length) {
+      const games = await prisma.game.findMany({
+        where: { quizId: { in: sampleIds } },
+        select: { id: true },
+      });
+      const gameIds = games.map((g) => g.id);
+      if (gameIds.length) {
+        await prisma.gameAnswer.deleteMany({ where: { gameId: { in: gameIds } } });
+        await prisma.player.deleteMany({ where: { gameId: { in: gameIds } } });
+        await prisma.game.deleteMany({ where: { id: { in: gameIds } } });
+      }
+      // questions + options cascade-delete with the quiz
+      const removed = await prisma.quiz.deleteMany({ where: { id: { in: sampleIds } } });
+      console.log(`Removed ${removed.count} duplicate sample quizzes`);
+    }
+  } catch (e) {
+    console.error('Sample-quiz cleanup skipped:', e.message);
+  }
 
-  console.log(`Created sample quiz: ${quiz.title}`);
   console.log('Seeding complete!');
 }
 
